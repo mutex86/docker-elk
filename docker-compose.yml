@@ -7,28 +7,15 @@ services:
       context: elasticsearch/
     volumes:
       - ./elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
+      - es_log_data:/usr/share/elasticsearch/data
     ports:
       - "9200:9200"
       - "9300:9300"
     environment:
-      ES_JAVA_OPTS: "-Xmx256m -Xms256m"
+      ES_JAVA_OPTS: "-Xmx512m -Xms512m"
     networks:
       - elk
 
-  logstash:
-    build:
-      context: logstash/
-    volumes:
-      - ./logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
-      - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
-    ports:
-      - "5000:5000"
-    environment:
-      LS_JAVA_OPTS: "-Xmx256m -Xms256m"
-    networks:
-      - elk
-    depends_on:
-      - elasticsearch
 
   kibana:
     build:
@@ -42,7 +29,30 @@ services:
     depends_on:
       - elasticsearch
 
+  log_pilot:
+    depends_on:
+      - kibana
+    image: registry.cn-hangzhou.aliyuncs.com/acs-sample/log-pilot:latest
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "/:/host"
+    environment:
+      FLUENTD_OUTPUT: elasticsearch
+      
+      # use your local machine ip
+      ELASTICSEARCH_HOST: 192.168.221.24
+      ELASTICSEARCH_PORT: 9200
+    privileged: true
+    networks:
+      - elk
+
+
 networks:
 
   elk:
     driver: bridge
+
+volumes:
+  es_log_data:
+    external:
+      name: es_log_data
